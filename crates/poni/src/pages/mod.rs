@@ -780,8 +780,9 @@ mod tests {
             st.addons.insert(id, poni_core::addons::Status::Ready);
         }
         assert_eq!(&tabs(&st)[6..], [Oyenza, Health, System, Script, Addons]);
-        // Clipboard left the app: an island last open there opens on Music.
-        assert_eq!(PageKind::from_key("clipboard"), Media);
+        // Clipboard is an add-on page again; an unknown key still opens Music.
+        assert_eq!(PageKind::from_key("clipboard"), Clipboard);
+        assert_eq!(PageKind::from_key("nope"), Media);
     }
 
     #[test]
