@@ -168,6 +168,22 @@ pub const SCRIPT_READER: Addon = Addon {
     pro: false,
 };
 
+/// Clipboard history: the Clipboard page, the text you copy kept in memory
+/// to paste again. Its code is in the app, so there is nothing to download.
+/// Off, there is no Clipboard tab and nothing watches the clipboard; on, a
+/// Windows clipboard listener (event-driven, no polling) records plain text
+/// copies. Never written to disk. Windows only: the Add-ons page leaves it
+/// out on the Mac.
+pub const CLIPBOARD_HISTORY: Addon = Addon {
+    id: "clipboard",
+    title: "Clipboard history",
+    blurb: "Text you copy, kept in memory to paste again. Never written to disk.",
+    mac_blurb: None,
+    tag: "",
+    files: &[],
+    pro: false,
+};
+
 /// System: the System page (the processor, graphics, memory, drives,
 /// network and power, and the apps using them). A tab for everyone up to
 /// 0.2.8; an add-on, off, in the versions after it, so the island's own tabs
@@ -342,7 +358,7 @@ pub const MEETING_NOTES: Addon = Addon {
 };
 
 /// Every add-on, in the order the Add-ons page lists them.
-pub const ALL: [&Addon; 10] = [&PRAYER_TIMES, &JAPANESE_READINGS, &SCRIPT_READER, &SYSTEM, &HEALTH, &STOCKS, &IELTS, &MEETING_NOTES, &SCREEN_RECORDER, &DOWNLOADER];
+pub const ALL: [&Addon; 11] = [&PRAYER_TIMES, &JAPANESE_READINGS, &SCRIPT_READER, &CLIPBOARD_HISTORY, &SYSTEM, &HEALTH, &STOCKS, &IELTS, &MEETING_NOTES, &SCREEN_RECORDER, &DOWNLOADER];
 
 /// Whether Japanese readings switch themselves on for a song whose kanji went
 /// unread for want of them (`wants`): only while the person reads
@@ -458,14 +474,12 @@ mod tests {
 
     #[test]
     fn built_in_add_ons_are_off_until_switched_on() {
-        for a in [&SYSTEM, &HEALTH, &STOCKS, &IELTS, &MEETING_NOTES] {
+        for a in [&CLIPBOARD_HISTORY, &SYSTEM, &HEALTH, &STOCKS, &IELTS, &MEETING_NOTES] {
             assert!(!a.downloads() && a.size() == 0, "{}", a.id);
             assert_eq!(Addon::find(a.id), Some(a));
             assert_eq!(Status::Ready.line(a, false), "On");
             assert!(!Settings::default().addon_on(a.id), "{} is off for everyone until they switch it on", a.id);
         }
-        // Clipboard history left the app after 0.2.8: no add-on by that id.
-        assert_eq!(Addon::find("clipboard"), None);
         // Notifications left the add-ons after 0.2.24: it's on wherever Windows
         // lets the copy read notifications, and Settings' tabs row switches it off.
         assert_eq!(Addon::find("notifications"), None);
@@ -562,7 +576,7 @@ mod tests {
     fn add_ons_are_listed_in_order_each_with_its_own_id() {
         // The Add-ons page's order: the Downloader last.
         let ids: Vec<&str> = ALL.iter().map(|a| a.id).collect();
-        assert_eq!(ids, ["sholat", "ja", "script", "system", "health", "stocks", "ielts", "notes", "recorder", "downloader"]);
+        assert_eq!(ids, ["sholat", "ja", "script", "clipboard", "system", "health", "stocks", "ielts", "notes", "recorder", "downloader"]);
         for (i, a) in ALL.iter().enumerate() {
             // The key in settings.json and the folder's name.
             assert!(!a.id.is_empty() && a.id.bytes().all(|b| b.is_ascii_lowercase()), "{}", a.id);

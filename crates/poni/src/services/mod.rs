@@ -58,6 +58,9 @@ pub struct Services {
     oyenza: Option<oyenza::OyenzaService>,
     pairdrop: Option<pairdrop::PairDropService>,
     addons: Option<addons::AddonService>,
+    /// The clipboard listener: its thread exists only while the Clipboard
+    /// history add-on is on ([`Services::set_clipboard_history`]).
+    clip: std::cell::RefCell<Option<clipboard::ClipboardHistory>>,
     /// Started the first time the Stocks page opens ([`Services::stocks_watch`]).
     stocks: std::cell::OnceCell<Option<stocks::StocksService>>,
     /// Started at the first download ([`Services::download`]).
@@ -104,7 +107,26 @@ impl Services {
             .map(|a| a.id)
             .collect();
         let addons = started("add-ons", addons::AddonService::start(sink.clone(), on));
-        Self { media, lyrics, _audio: audio, _bluetooth: bluetooth, fullscreen, oyenza, pairdrop, addons, stocks: std::cell::OnceCell::new(), usage: std::cell::OnceCell::new(), downloader: std::cell::OnceCell::new(), sink: sink.clone() }
+        let clip = std::cell::RefCell::new(None);
+        let me = Self { media, lyrics, _audio: audio, _bluetooth: bluetooth, fullscreen, oyenza, pairdrop, addons, clip, stocks: std::cell::OnceCell::new(), usage: std::cell::OnceCell::new(), downloader: std::cell::OnceCell::new(), sink: sink.clone() };
+        me.set_clipboard_history(settings.addon_on(poni_core::addons::CLIPBOARD_HISTORY.id));
+        me
+    }
+
+    /// Turn clipboard history capture on or off (the add-on was switched).
+    /// On starts the listener thread; off stops it, so nothing watches the
+    /// clipboard and no thread exists while the add-on is off.
+    pub fn set_clipboard_history(&self, on: bool) {
+        let mut clip = self.clip.borrow_mut();
+        match (on, clip.is_some()) {
+            (true, false) => *clip = started("clipboard history", clipboard::ClipboardHistory::start(self.sink.clone(), true)),
+            (false, true) => {
+                if let Some(c) = clip.take() {
+                    c.stop();
+                }
+            }
+            _ => {}
+        }
     }
 
     pub fn stop(self, _helper: HWND) {

@@ -11,6 +11,7 @@
 
 pub mod addons;
 pub mod card;
+pub mod clipboard;
 pub mod downloads;
 pub mod downloads_offer;
 pub mod focus;
@@ -82,6 +83,9 @@ pub enum PageKind {
     System,
     /// The teleprompter: a script read under the webcam.
     Script,
+    /// Text you copied, kept in memory to copy again, while the Clipboard
+    /// history add-on is on ([`tabs`]; Windows only).
+    Clipboard,
     /// Screen recording with Oyenza Studio Recorder, while its add-on is on
     /// ([`tabs`]): what to record, then the recording under way.
     Record,
@@ -104,7 +108,7 @@ pub enum PageKind {
 impl PageKind {
     /// The tab row's order: the island's own pages, Oyenza, then the
     /// add-ons' pages and the "+".
-    pub const ALL: [PageKind; 19] = [
+    pub const ALL: [PageKind; 20] = [
         PageKind::Media,
         PageKind::Today,
         PageKind::Shelf,
@@ -117,6 +121,7 @@ impl PageKind {
         PageKind::Notes,
         PageKind::System,
         PageKind::Script,
+        PageKind::Clipboard,
         PageKind::Record,
         PageKind::Prayer,
         PageKind::Stocks,
@@ -139,6 +144,7 @@ impl PageKind {
             PageKind::Today => "today",
             PageKind::System => "system",
             PageKind::Script => "script",
+            PageKind::Clipboard => "clipboard",
             PageKind::Record => "record",
             PageKind::Oyenza => "oyenza",
             PageKind::Prayer => "prayer",
@@ -169,6 +175,7 @@ impl PageKind {
             PageKind::Today => "Today",
             PageKind::System => "System",
             PageKind::Script => "Script",
+            PageKind::Clipboard => "Clipboard",
             PageKind::Record => "Record",
             PageKind::Oyenza => "Oyenza",
             PageKind::Prayer => "Prayer",
@@ -193,6 +200,7 @@ impl PageKind {
             PageKind::Today => Icon::Calendar,
             PageKind::System => Icon::Gauge,
             PageKind::Script => Icon::Script,
+            PageKind::Clipboard => Icon::Clipboard,
             PageKind::Record => Icon::Recorder,
             PageKind::Oyenza => Icon::Wallet,
             PageKind::Prayer => Icon::Moon,
@@ -231,7 +239,7 @@ impl PageKind {
 }
 
 /// The tabs in the header: every page but Settings, and Health, IELTS, Notes,
-/// System, Script, Record, Prayer and Stocks only while their add-ons are on.
+/// System, Script, Clipboard, Record, Prayer and Stocks only while their add-ons are on.
 /// Music, Today, Shelf, Tasks and Focus unless Settings took them off the
 /// row; one of those still shows while its page is open (a file dropped on
 /// the island opens the Shelf). Notifications wherever the copy can read
@@ -271,6 +279,7 @@ fn row(st: &AppState, open: Option<PageKind>) -> Vec<PageKind> {
             PageKind::System => st.system_on(),
             PageKind::Prayer => st.prayer_on(),
             PageKind::Script => st.script_on(),
+            PageKind::Clipboard => st.clipboard_on(),
             PageKind::Stocks => st.stocks_on(),
             PageKind::Downloads => st.downloader_on(),
             PageKind::Record => st.record_on(),
@@ -302,6 +311,7 @@ pub fn content_height(p: PageKind, st: &AppState) -> f32 {
         PageKind::Today => today::height(st),
         PageKind::System => system::height(st),
         PageKind::Script => script::height(st),
+        PageKind::Clipboard => clipboard::height(st),
         PageKind::Record => record::height(st),
         PageKind::Oyenza => oyenza::height(st),
         PageKind::Prayer => prayer::height(st),
@@ -324,6 +334,7 @@ pub fn next_wake(page: PageKind, st: &AppState) -> Option<f64> {
         PageKind::Oyenza => oyenza::next_wake(st),
         PageKind::Settings => settings::next_wake(st),
         PageKind::Script => script::next_wake(st),
+        PageKind::Clipboard => clipboard::next_wake(st),
         PageKind::Record => record::next_wake(st),
         PageKind::Prayer => prayer::next_wake(st),
         PageKind::Today => today::next_wake(st),
@@ -443,6 +454,7 @@ pub(crate) fn draw_page(ui: &mut Ui, st: &mut AppState, area: Rect, page: PageKi
         PageKind::Today => today::draw(ui, st, area),
         PageKind::System => system::draw(ui, st, area),
         PageKind::Script => script::draw(ui, st, area),
+        PageKind::Clipboard => clipboard::draw(ui, st, area),
         PageKind::Record => record::draw(ui, st, area),
         PageKind::Oyenza => oyenza::draw(ui, st, area),
         PageKind::Prayer => prayer::draw(ui, st, area),
@@ -988,6 +1000,22 @@ mod tests {
         st.addons.insert("script", poni_core::addons::Status::Ready);
         assert!(tabs(&st).contains(&PageKind::Script));
         assert_eq!(tabs(&st).last(), Some(&PageKind::Addons));
+    }
+
+    #[test]
+    fn clipboard_has_a_tab_only_while_its_add_on_is_on() {
+        let mut st = state();
+        assert!(!tabs(&st).contains(&PageKind::Clipboard), "off for everyone until switched on");
+        st.addons.insert("clipboard", poni_core::addons::Status::Ready);
+        // Windows only: the Mac has no clipboard listener.
+        assert_eq!(tabs(&st).contains(&PageKind::Clipboard), !cfg!(target_os = "macos"));
+        assert_eq!(tabs(&st).last(), Some(&PageKind::Addons));
+        assert_eq!(PageKind::from_key("clipboard"), PageKind::Clipboard);
+        // Its page is never taller than the window (System's).
+        assert!(content_height(PageKind::Clipboard, &st) <= content_height(PageKind::System, &st));
+        // A last-open Clipboard page, since switched off, opens on the first tab.
+        st.addons.insert("clipboard", poni_core::addons::Status::Off);
+        assert!(!tabs(&st).contains(&PageKind::Clipboard));
     }
 
     #[test]

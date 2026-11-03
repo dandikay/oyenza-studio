@@ -500,6 +500,8 @@ pub struct App {
     tray: Option<Tray>,
     taskbar_created_msg: u32,
     selftest: Option<selftest::SelfTest>,
+    /// Text we put on the clipboard ourselves (don't record it again).
+    own_clip: Option<String>,
     exit_code: i32,
     /// Settings as last written to disk (to diff page-made changes).
     saved_settings: Settings,
@@ -730,6 +732,7 @@ impl App {
             tray: None,
             taskbar_created_msg,
             selftest,
+            own_clip: None,
             exit_code: 0,
             saved_settings,
             settings_writable,
@@ -1828,7 +1831,7 @@ impl App {
     }
 
     /// Save the Apple Music token copied from the browser (sealed with DPAPI)
-    /// and take it off the clipboard.
+    /// and keep it off the clipboard and out of the clipboard history.
     fn use_apple_music_token(&mut self) {
         let text = services::clipboard::read_text(self.hwnd).unwrap_or_default();
         let Some(token) = poni_core::applemusic::clean_user_token(&text) else {
@@ -1841,7 +1844,7 @@ impl App {
             return;
         }
         pinfo!("apple music: token saved");
-        services::clipboard::set_text(self.helper, "");
+        self.forget_clipboard_text(&token);
         if let Some(s) = self.services.as_ref() {
             s.apple_music_token_changed();
         }
@@ -2211,6 +2214,17 @@ impl App {
         self.oyenza_notice(icon, palette::ORANGE, oyenza::bill_title(&b, today), shown, hidden);
     }
 
+    /// Remove history entries holding `secret` and clear the clipboard.
+    fn forget_clipboard_text(&mut self, secret: &str) {
+        let hits: Vec<usize> = self.st.clip.iter().enumerate().filter(|(_, c)| c.text.contains(secret)).map(|(i, _)| i).collect();
+        for i in hits.into_iter().rev() {
+            self.st.clip.remove(i);
+        }
+        self.st.ui.clip_flash = None;
+        self.own_clip = Some(String::new());
+        services::clipboard::set_text(self.helper, "");
+    }
+
     /// Look up the current track's lyrics again (the sources changed).
     fn refetch_lyrics(&mut self) {
         if !self.st.settings.lyrics {
@@ -2277,6 +2291,20 @@ impl App {
                 if let Some(s) = self.services.as_ref() {
                     s.set_addon(a.id, on);
                 }
+            }
+        }
+        // Clipboard history on starts the listener thread; off stops it and,
+        // for privacy, forgets everything (pinned items included).
+        let clip_id = poni_core::addons::CLIPBOARD_HISTORY.id;
+        if before.addon_on(clip_id) != self.st.settings.addon_on(clip_id) {
+            let on = self.st.settings.addon_on(clip_id);
+            if !on {
+                self.st.clip = poni_core::cliphist::ClipHistory::default();
+                self.st.ui.clip_flash = None;
+                self.st.ui.clip_scroll = 0.0;
+            }
+            if let Some(s) = self.services.as_ref() {
+                s.set_clipboard_history(on);
             }
         }
         // Notifications switched on in Settings' tabs row: listen, Windows'
@@ -2648,6 +2676,13 @@ impl App {
                 self.st.game.access = a;
                 self.sync_game();
             }
+            AppEvent::ClipboardText(t) => {
+                if self.own_clip.as_deref() == Some(t.as_str()) {
+                    self.own_clip = None;
+                } else if self.st.clipboard_on() {
+                    self.st.clip.push(&t, self.st.unix);
+                }
+            }
             AppEvent::AppleMusic(status) => self.on_apple_music(status),
             AppEvent::Phone(e) => self.on_phone(e),
             AppEvent::Paired(e) => self.on_paired(e),
@@ -2819,6 +2854,7 @@ impl App {
             self.set_sysmon(false);
             // Oyen arrives in his tab again at the next opening.
             self.st.ui.oyen_tab = None;
+            self.st.ui.clip_flash = None;
             // Sums shown in the Oyenza tab hide again, and it opens on Today next time.
             self.st.oyenza.reveal = false;
             self.st.oyenza.day = oyenza::DayPick::Today;
@@ -3562,6 +3598,7 @@ impl App {
         // Prayer times, System, Health, Stocks, IELTS or Downloader switched off: its tab is gone.
         let gone = match self.st.page {
             PageKind::Prayer => !self.st.prayer_on(),
+            PageKind::Clipboard => !self.st.clipboard_on(),
             PageKind::System => !self.st.system_on(),
             PageKind::Health => !self.st.health_on(),
             PageKind::Stocks => !self.st.stocks_on(),
@@ -4760,6 +4797,10 @@ impl App {
                         self.st.shelf_thumbs.insert(p.clone(), None);
                         services::imaging::load_thumb_async(p, self.sink.clone());
                     }
+                }
+                Command::CopyText(t) => {
+                    self.own_clip = Some(t.clone());
+                    services::clipboard::set_text(self.hwnd, &t);
                 }
                 Command::FocusText => self.focus_text(),
                 Command::BlurText => self.blur_text(),

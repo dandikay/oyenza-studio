@@ -2891,6 +2891,8 @@ impl App {
                         services::thumbs::load_async(p, px, self.sink.clone());
                     }
                 }
+                // Clipboard history is Windows only; its page never shows here.
+                Command::CopyText(t) => services::clipboard::set_text(&t),
                 Command::FocusText => self.focus_text(),
                 Command::BlurText => self.blur_text(),
                 Command::RecordScreen => services::recorder::record_screen(self.mtm),

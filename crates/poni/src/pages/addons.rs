@@ -63,7 +63,8 @@ pub fn height(st: &AppState) -> f32 {
     ROWS_Y + n as f32 * row_h(n)
 }
 
-/// The page's rows: every add-on offered, Screen recorder only once Oyenza
+/// The page's rows: every add-on offered (Clipboard history on Windows only),
+/// Screen recorder only once Oyenza
 /// Studio Recorder is installed and has spoken to the island
 /// (`AppState::recorder_ready`), IELTS only for an account the server says
 /// has Studio Pro, Downloader only where it's offered
@@ -72,6 +73,7 @@ fn rows(st: &AppState) -> Vec<&'static Addon> {
     OFFERED
         .iter()
         .copied()
+        .filter(|a| a.id != addons::CLIPBOARD_HISTORY.id || !MAC)
         .filter(|a| a.id != addons::SCREEN_RECORDER.id || st.recorder_ready())
         .filter(|a| a.id != addons::DOWNLOADER.id || (st.downloader_offered && st.studio_pro() == Some(true)))
         .filter(|a| a.id != addons::IELTS.id || st.studio_pro() == Some(true))
@@ -120,6 +122,7 @@ fn icon(a: &Addon) -> Icon {
         "sholat" => Icon::Moon,
         "ja" => Icon::Lyrics,
         "script" => Icon::Script,
+        "clipboard" => Icon::Clipboard,
         "system" => Icon::Gauge,
         "health" => Icon::Steps,
         "stocks" => Icon::Stocks,

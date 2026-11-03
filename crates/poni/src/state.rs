@@ -8,6 +8,7 @@ use crate::gfx::Image;
 use crate::icons::Icon;
 use crate::pages::PageKind;
 use poni_core::addons::Status as AddonStatus;
+use poni_core::cliphist::ClipHistory;
 use poni_core::datetime::LocalDateTime;
 use poni_core::geom::{palette, Color};
 use poni_core::health::HealthSnapshot;
@@ -324,6 +325,10 @@ pub struct PageUiState {
     pub task_input: String,
     pub task_scroll: f32,
     pub shelf_scroll: f32,
+    /// The Clipboard page: how far its list is scrolled (DIPs), and the row
+    /// that just got copied (index, mono time) for the "Copied" flash.
+    pub clip_scroll: f32,
+    pub clip_flash: Option<(usize, f64)>,
     /// The Today page's list: how far it's scrolled (DIPs), the date clicked
     /// in its grid (days since 1970-01-01), and when it was last drawn (mono
     /// time; a page drawn again after a while starts at today).
@@ -761,6 +766,9 @@ fn usage_line(subtitle: &str, nudge: Option<&str>) -> String {
 pub struct AppState {
     pub settings: Settings,
     pub store: Store,
+    /// Clipboard history (memory only, never saved); filled while the
+    /// Clipboard history add-on is on.
+    pub clip: ClipHistory,
     /// Monotonic seconds at the current frame.
     pub now: f64,
     pub local: LocalDateTime,
@@ -883,6 +891,7 @@ impl AppState {
         let mut st = Self {
             settings,
             store,
+            clip: ClipHistory::default(),
             now: 0.0,
             local: LocalDateTime::default(),
             unix: 0,
@@ -941,6 +950,7 @@ impl AppState {
         // first tab.
         let off = match st.page {
             PageKind::Script => !st.script_on(),
+            PageKind::Clipboard => !st.clipboard_on(),
             PageKind::System => !st.system_on(),
             PageKind::Health => !st.health_on(),
             PageKind::Stocks => !st.stocks_on(),
@@ -1008,6 +1018,12 @@ impl AppState {
     /// The Health add-on is on: the Health tab shows and the steps are asked for.
     pub fn health_on(&self) -> bool {
         self.addon(poni_core::addons::HEALTH.id) == AddonStatus::Ready
+    }
+
+    /// The Clipboard history add-on is on: the Clipboard tab shows and copies
+    /// are recorded. Windows only: the Mac has no listener for it.
+    pub fn clipboard_on(&self) -> bool {
+        !cfg!(target_os = "macos") && self.addon(poni_core::addons::CLIPBOARD_HISTORY.id) == AddonStatus::Ready
     }
 
     /// The Stocks add-on is on: the Stocks tab shows (its prices are asked
