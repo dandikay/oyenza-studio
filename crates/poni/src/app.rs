@@ -4942,11 +4942,22 @@ impl App {
     /// the way Notifications shows another app's.
     fn on_web_chat(&mut self, m: poni_core::webchat::Message) {
         // Nobody would see it while the PC is locked or its display is off.
+        // (The log says what became of it, never what it said.)
         if !self.st.webchat_on() || self.locked || self.display_off {
+            pinfo!(
+                "whatsapp web: message skipped (add-on on: {}, locked: {}, display off: {})",
+                self.st.webchat_on(),
+                self.locked,
+                self.display_off
+            );
             return;
         }
-        if let Some(n) = pages::notifications::web_notice(&m.from, &m.text, &self.st.settings.notifications, self.st.accent, self.st.now) {
-            self.st.show_or_hold(n, self.fullscreen_hidden);
+        match pages::notifications::web_notice(&m.from, &m.text, &self.st.settings.notifications, self.st.accent, self.st.now) {
+            Some(n) => {
+                pinfo!("whatsapp web: message shown (island hidden by a full-screen app: {})", self.fullscreen_hidden);
+                self.st.show_or_hold(n, self.fullscreen_hidden);
+            }
+            None => pinfo!("whatsapp web: message had no words"),
         }
     }
 
