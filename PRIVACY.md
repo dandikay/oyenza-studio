@@ -1,6 +1,6 @@
 # Oyenza Studio privacy
 
-Oyenza Studio is made by Jatevo Labs. It needs no account, and has no ads, no analytics and no tracking. Unless you sign in to Oyenza or connect Oyenza Inference, it never sends us anything about you. On its own it reads one public file from our website, to see whether a new version is out; the Stocks add-on, once you switch it on, also reads public prices from oyenza.trade. The Clipboard history add-on, only once you switch it on, keeps the text you copy in memory (never written to disk, never sent anywhere) and forgets it when you switch it off or quit.
+Oyenza Studio is made by Jatevo Labs. It needs no account, and has no ads, no analytics and no tracking. Unless you sign in to Oyenza or connect Oyenza Inference, it never sends us anything about you. On its own it reads one public file from our website, to see whether a new version is out; the Stocks add-on, once you switch it on, also reads public prices from oyenza.trade. The Clipboard history add-on, only once you switch it on, keeps the text you copy in memory (never written to disk, never sent anywhere) and forgets it when you switch it off or quit. The WhatsApp Web add-on, only once you switch it on, listens on `127.0.0.1` (this PC only) for the notifications its browser extension catches on web.whatsapp.com (who it's from and the message); they show on the island and are kept nowhere.
 
 ## What leaves your PC
 

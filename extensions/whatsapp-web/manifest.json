@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Oyenza Studio: WhatsApp Web",
+  "version": "1.0.0",
+  "description": "Shows WhatsApp Web messages on the Oyenza Studio island. Messages go only to Oyenza Studio on this PC (127.0.0.1), nowhere else.",
+  "minimum_chrome_version": "111",
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

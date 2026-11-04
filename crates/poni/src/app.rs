@@ -2307,6 +2307,13 @@ impl App {
                 s.set_clipboard_history(on);
             }
         }
+        // WhatsApp Web on starts its localhost server; off stops it.
+        let wa_id = poni_core::addons::WHATSAPP_WEB.id;
+        if before.addon_on(wa_id) != self.st.settings.addon_on(wa_id) {
+            if let Some(s) = self.services.as_ref() {
+                s.set_webchat(self.st.settings.addon_on(wa_id));
+            }
+        }
         // Notifications switched on in Settings' tabs row: listen, Windows'
         // question first; off: stop.
         let notify_was = !before.hidden_tabs.iter().any(|k| k == PageKind::Notifications.key());
@@ -2683,6 +2690,7 @@ impl App {
                     self.st.clip.push(&t, self.st.unix);
                 }
             }
+            AppEvent::WebChat(m) => self.on_web_chat(m),
             AppEvent::AppleMusic(status) => self.on_apple_music(status),
             AppEvent::Phone(e) => self.on_phone(e),
             AppEvent::Paired(e) => self.on_paired(e),
@@ -4927,6 +4935,18 @@ impl App {
                 }
             }
             NotifyCmd::OpenWindowsSettings => shell::open_notification_settings(),
+        }
+    }
+
+    /// A WhatsApp Web message from the browser extension: a notice, shown
+    /// the way Notifications shows another app's.
+    fn on_web_chat(&mut self, m: poni_core::webchat::Message) {
+        // Nobody would see it while the PC is locked or its display is off.
+        if !self.st.webchat_on() || self.locked || self.display_off {
+            return;
+        }
+        if let Some(n) = pages::notifications::web_notice(&m.from, &m.text, &self.st.settings.notifications, self.st.accent, self.st.now) {
+            self.st.show_or_hold(n, self.fullscreen_hidden);
         }
     }
 

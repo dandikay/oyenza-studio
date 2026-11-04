@@ -61,6 +61,9 @@ pub struct Services {
     /// The clipboard listener: its thread exists only while the Clipboard
     /// history add-on is on ([`Services::set_clipboard_history`]).
     clip: std::cell::RefCell<Option<clipboard::ClipboardHistory>>,
+    /// The WhatsApp Web add-on's localhost server: it listens, and its
+    /// thread exists, only while the add-on is on ([`Services::set_webchat`]).
+    webchat: std::cell::RefCell<Option<poni_core::webchat::Server>>,
     /// Started the first time the Stocks page opens ([`Services::stocks_watch`]).
     stocks: std::cell::OnceCell<Option<stocks::StocksService>>,
     /// Started at the first download ([`Services::download`]).
@@ -108,9 +111,34 @@ impl Services {
             .collect();
         let addons = started("add-ons", addons::AddonService::start(sink.clone(), on));
         let clip = std::cell::RefCell::new(None);
-        let me = Self { media, lyrics, _audio: audio, _bluetooth: bluetooth, fullscreen, oyenza, pairdrop, addons, clip, stocks: std::cell::OnceCell::new(), usage: std::cell::OnceCell::new(), downloader: std::cell::OnceCell::new(), sink: sink.clone() };
+        let webchat = std::cell::RefCell::new(None);
+        let me = Self { media, lyrics, _audio: audio, _bluetooth: bluetooth, fullscreen, oyenza, pairdrop, addons, clip, webchat, stocks: std::cell::OnceCell::new(), usage: std::cell::OnceCell::new(), downloader: std::cell::OnceCell::new(), sink: sink.clone() };
         me.set_clipboard_history(settings.addon_on(poni_core::addons::CLIPBOARD_HISTORY.id));
+        me.set_webchat(settings.addon_on(poni_core::addons::WHATSAPP_WEB.id));
         me
+    }
+
+    /// Start or stop the WhatsApp Web add-on's server (the add-on was
+    /// switched). Off, nothing listens and no thread exists.
+    pub fn set_webchat(&self, on: bool) {
+        let mut slot = self.webchat.borrow_mut();
+        match (on, slot.is_some()) {
+            (true, false) => {
+                let sink = std::sync::Mutex::new(self.sink.clone());
+                let server = poni_core::webchat::Server::start(poni_core::webchat::PORT, move |m| {
+                    if let Ok(s) = sink.lock() {
+                        s.send(crate::events::AppEvent::WebChat(m));
+                    }
+                });
+                *slot = started("whatsapp web", server);
+            }
+            (false, true) => {
+                if let Some(s) = slot.take() {
+                    s.stop();
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Turn clipboard history capture on or off (the add-on was switched).

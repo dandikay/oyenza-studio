@@ -74,6 +74,7 @@ fn rows(st: &AppState) -> Vec<&'static Addon> {
         .iter()
         .copied()
         .filter(|a| a.id != addons::CLIPBOARD_HISTORY.id || !MAC)
+        .filter(|a| a.id != addons::WHATSAPP_WEB.id || !MAC)
         .filter(|a| a.id != addons::SCREEN_RECORDER.id || st.recorder_ready())
         .filter(|a| a.id != addons::DOWNLOADER.id || (st.downloader_offered && st.studio_pro() == Some(true)))
         .filter(|a| a.id != addons::IELTS.id || st.studio_pro() == Some(true))
@@ -123,6 +124,7 @@ fn icon(a: &Addon) -> Icon {
         "ja" => Icon::Lyrics,
         "script" => Icon::Script,
         "clipboard" => Icon::Clipboard,
+        "whatsapp" => Icon::Message,
         "system" => Icon::Gauge,
         "health" => Icon::Steps,
         "stocks" => Icon::Stocks,

@@ -54,6 +54,26 @@ pub fn message_notice(seen: &Seen, choices: &NotificationSettings, accent: Color
     })
 }
 
+/// The island's notice for a WhatsApp Web message (the add-on's extension):
+/// the same words as [`message_notice`], in WhatsApp's green. There is no app
+/// to Open (the chat is in a browser tab), so a notice with its words hidden
+/// has Show and any other has nothing.
+pub fn web_notice(from: &str, text: &str, choices: &NotificationSettings, accent: Color, now: f64) -> Option<Notice> {
+    let seen = Seen { app_id: "web.whatsapp.com".into(), app: "WhatsApp".into(), lines: vec![from.to_string(), text.to_string()] };
+    let said = notifications::compose(&seen, choices.who, choices.text)?;
+    Some(Notice {
+        icon: Icon::Message,
+        color: notifications::color(&seen.app_id, &seen.app).unwrap_or(accent),
+        title: said.title,
+        title_dim: said.title_dim,
+        subtitle: said.subtitle,
+        until: now + notifications::NOTICE_S,
+        action: None,
+        inline: said.reveal.is_some().then_some(InlineAction::ShowAmount),
+        reveal: said.reveal,
+    })
+}
+
 pub fn height(st: &AppState) -> f32 {
     ROWS_Y + st.settings.notifications.apps.len().clamp(MIN_ROWS, MAX_ROWS) as f32 * ROW_H
 }
@@ -146,6 +166,24 @@ pub fn draw(ui: &mut Ui, st: &mut AppState, area: Rect) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_web_chat_message_is_a_green_notice_with_no_app_to_open() {
+        let mut choices = NotificationSettings::default();
+        let n = web_notice("Budi", "Makan yuk", &choices, Color::white(1.0), 10.0).unwrap();
+        assert_eq!((n.title.as_str(), n.title_dim.as_str(), n.subtitle.as_str()), ("Budi", "WhatsApp", "Makan yuk"));
+        assert_eq!(n.color, notifications::WHATSAPP);
+        assert_eq!(n.until, 10.0 + notifications::NOTICE_S);
+        assert!(n.action.is_none() && n.inline.is_none(), "the chat is in a browser tab: nothing to open");
+        // The message hidden in Settings' choices waits for Show.
+        choices.text = false;
+        let n = web_notice("Budi", "Makan yuk", &choices, Color::white(1.0), 0.0).unwrap();
+        assert_eq!(n.inline, Some(InlineAction::ShowAmount));
+        assert_eq!(n.reveal.as_deref(), Some("Makan yuk"));
+        // Words only in the title are the message itself; nothing at all makes no notice.
+        assert!(web_notice("A group", "", &NotificationSettings::default(), Color::white(1.0), 0.0).is_some());
+        assert!(web_notice("", "", &NotificationSettings::default(), Color::white(1.0), 0.0).is_none());
+    }
 
     #[test]
     fn the_page_grows_with_its_apps_up_to_six_rows() {

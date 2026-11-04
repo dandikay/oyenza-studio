@@ -165,6 +165,9 @@ pub enum AppEvent {
     FpsAccess(crate::state::FpsAccess),
     /// Clipboard history: text that was just copied (`services::clipboard`).
     ClipboardText(String),
+    /// WhatsApp Web add-on: a message from the browser extension
+    /// (`services::webchat`).
+    WebChat(poni_core::webchat::Message),
     /// Phone drop's server: a phone opened the page, asked, sent, gave up.
     Phone(poni_core::phonedrop::Event),
     /// Paired phones: pairing done, the list changed, files from a phone.

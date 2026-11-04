@@ -1026,6 +1026,12 @@ impl AppState {
         !cfg!(target_os = "macos") && self.addon(poni_core::addons::CLIPBOARD_HISTORY.id) == AddonStatus::Ready
     }
 
+    /// The WhatsApp Web add-on is on: its messages show on the island.
+    /// Windows only: the Mac has no server for it.
+    pub fn webchat_on(&self) -> bool {
+        !cfg!(target_os = "macos") && self.addon(poni_core::addons::WHATSAPP_WEB.id) == AddonStatus::Ready
+    }
+
     /// The Stocks add-on is on: the Stocks tab shows (its prices are asked
     /// for only while the page is on screen).
     pub fn stocks_on(&self) -> bool {
