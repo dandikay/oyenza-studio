@@ -12,6 +12,8 @@
   if (!Native || Native.__oyenza) return;
 
   const send = (title, body) => {
+    // Seen in this page's console (F12), so it is clear WhatsApp made one.
+    console.log('[oyenza] WhatsApp Web made a notification; sending it to the island');
     try {
       window.postMessage({ source: 'oyenza-wa', title: String(title == null ? '' : title), body: String(body == null ? '' : body) }, window.location.origin);
     } catch (_) {}
@@ -42,6 +44,7 @@
     return Promise.resolve('granted');
   };
   window.Notification = Wrapped;
+  console.log('[oyenza] watching WhatsApp Web notifications');
 
   // Some versions of WhatsApp Web notify through the service worker.
   const proto = window.ServiceWorkerRegistration && window.ServiceWorkerRegistration.prototype;
